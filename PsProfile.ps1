@@ -1,13 +1,46 @@
 function cdp { Set-Location C:\Users\[User]\Documents\Code\_p }
 
-function port {
+function Get-PortProcess {
     param(
         [Parameter(Mandatory=$true)]
-        [int]$LocalPort
+        [int]$LocalPort,
+        
+        [Alias("--with-usage")]
+        [switch]$WithUsage
     )
 
-    $processId = (Get-NetTCPConnection -LocalPort $LocalPort).OwningProcess
-    Get-Process -Id $processId
+    $processId = netstat -ano | 
+        Select-String ":$LocalPort\s+" | 
+        ForEach-Object {
+            if ($_ -match '\s+(\d+)\s*$') {
+                $matches[1]
+            }
+        }
+
+    if ($processId) {
+        $process = Get-Process -Id $processId
+        $output = $process | Select-Object @{Name='Port'; Expression={$LocalPort}},  # Port Number
+                                          @{Name='PID'; Expression={$_.Id}},  # Process ID
+                                          @{Name='ProcessName'; Expression={$_.ProcessName}}  # Process Name
+
+        if ($WithUsage) {
+            $cpuCounter = New-Object System.Diagnostics.PerformanceCounter("Process", "% Processor Time", $process.ProcessName, $true)
+            $ramCounter = New-Object System.Diagnostics.PerformanceCounter("Process", "Working Set - Private", $process.ProcessName, $true)
+            
+            # It may take a moment for the counters to provide accurate data
+            Start-Sleep -Seconds 1
+            
+            $cpuUsage = $cpuCounter.NextValue() / [Environment]::ProcessorCount
+            $ramUsage = $ramCounter.NextValue() / 1MB
+
+            $output | Add-Member -MemberType NoteProperty -Name 'CPU Usage (%)' -Value ([math]::Round($cpuUsage, 2))
+            $output | Add-Member -MemberType NoteProperty -Name 'RAM Usage (MB)' -Value ([math]::Round($ramUsage, 2))
+        }
+        
+        $output | Format-Table -AutoSize
+    } else {
+        Write-Host "No process found on port $LocalPort"
+    }
 }
 
 function unzip {
