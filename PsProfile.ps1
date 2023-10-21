@@ -60,12 +60,12 @@ function vs {
     $csprojFile = Get-ChildItem -Path $directory.FullName -Filter *.csproj -Recurse -Depth 0 | Select-Object -First 1
 
     if ($null -ne $slnFile) {
-        Start-Process "devenv" -ArgumentList $slnFile.FullName
+        Start-Process "devenv" -ArgumentList  "`"$($slnFile.FullName)`""
     }
     elseif ($null -ne $csprojFile) {
-        Start-Process "devenv" -ArgumentList $csprojFile.FullName
+        Start-Process "devenv" -ArgumentList "`"$($csprojFile.FullName)`""
     }
     else {
-        Start-Process "devenv" -ArgumentList $directory.FullName
+        Start-Process "devenv" -ArgumentList "`"$($directory.FullName)`""
     }
 }
